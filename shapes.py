@@ -6,7 +6,7 @@ import gosper
 def generate_shape(func, mini, maxi, step):
     shape = []
     t = mini
-    while t <= maxi + 0.00001:  # Extra to account for rounding error
+    while t <= maxi + .00001:  # Extra to account for rounding error
         point = func(t)
         shape.append(point)
         t += step
@@ -115,7 +115,7 @@ class Wave:
         self.arc2 = circle_arc_3points(np.array([0, 0]), np.array([self.scale, -waviness * scale]), np.array([2 * self.scale, 0]))
 
     def get_point(self, t):
-        if t < 0.5:
+        if t < .5:
             return self.arc1.get_point(t * 2 * self.arc1.length + self.arc1.angle)
         else:
             return self.arc2.get_point((t * 2 - 1) * self.arc2.length + self.arc2.angle)
@@ -147,9 +147,9 @@ class CircleArc:
 
 
 def circle_arc_3points(p1, p2, p3):
-    p1 = array_to_poi(p1)
-    p2 = array_to_poi(p2)
-    p3 = array_to_poi(p3)
+    p1 = arrayToPoint(p1)
+    p2 = arrayToPoint(p2)
+    p3 = arrayToPoint(p3)
 
     pc = circle_center(p1, p2, p3)
     r = pc.distance(p1)
@@ -162,15 +162,15 @@ def circle_arc_3points(p1, p2, p3):
     a2 = d2.getAngle()
     a3 = d3.getAngle()
 
-    da1 = get_smallest_angle(a1, a2)
-    da2 = get_smallest_angle(a2, a3)
+    da1 = shortestAngleDelta(a1, a2)
+    da2 = shortestAngleDelta(a2, a3)
 
     if da1 * da2 > 0:
         a2 = (da1 + da2) / 2 + a1
     else:
         a2 = (da1 + da2) / 2 + np.pi + a1
 
-    da = get_smallest_angle(a1, a2) + get_smallest_angle(a2, a3)
+    da = shortestAngleDelta(a1, a2) + shortestAngleDelta(a2, a3)
     return CircleArc(pc.to_array(), r, a1, da)
 
 

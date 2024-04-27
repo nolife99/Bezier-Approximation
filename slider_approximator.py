@@ -1,65 +1,125 @@
 from shape_approximator import *
-from slider_path import SliderPath
-from structs import array_to_poi, get_smallest_angle
+import path_approximator
+from structs import arrayToPoint, shortestAngleDelta
 
 
-pathTypeConversion = {'L': 'Linear',
-                      'P': 'PerfectCurve',
-                      'C': 'Catmull',
-                      'B': 'Bezier'}
+pathTypeConversion = {"L": "Linear", "P": "PerfectCurve", "C": "Catmull", "B": "Bezier"}
 
 
-def convert_slider(shape, num_anchors, args):
+def convertPathToAnchors(shape, steps, args):
     if args.plot:
-        plot_alpha(shape)
+        plotAlpha(shape)
 
     firstTime = time.time()
-    if args.mode == "bspline":
-        loss, anchors = piecewise_linear_to_bspline(shape, args.order, num_anchors, args.num_steps, args.num_testpoints,
-                                                   args.retarded, args.learning_rate, args.b1, args.b2, not args.silent, args.plot)
-    else:
-        loss, anchors = piecewise_linear_to_bezier(shape, num_anchors, args.num_steps, args.num_testpoints,
-                                                   args.retarded, args.learning_rate, args.b1, args.b2, not args.silent, args.plot)
+    anchors = (
+        PiecewiseLinearToBSpline(
+            shape,
+            args.order,
+            steps,
+            args.steps,
+            args.testpoints,
+            args.learnrate,
+            args.b1,
+            args.b2,
+            not args.silent,
+            args.plot,
+        )
+        if args.mode == "bspline"
+        else PiecewiseLinearToBezier(
+            shape,
+            steps,
+            args.steps,
+            args.testpoints,
+            args.learnrate,
+            args.b1,
+            args.b2,
+            not args.silent,
+            args.plot,
+        )
+    )
 
     if not args.silent:
         print("Time took:", time.time() - firstTime)
 
-    return loss, anchors
+    return anchors
 
 
-def get_shape(values):
+def getShape(values):
+    pts = np.vstack(
+        [
+            np.array(i.split(":"), dtype=np.float32)
+            for i in (values[0] + ":" + values[1] + values[5][1:]).split("|")
+        ]
+    )
+    calculatedPath = []
+    start = 0
+    end = 0
     pathType = pathTypeConversion[values[5][0]]
-    control_points = (values[0] + ':' + values[1] + values[5][1:]).split('|')
-    control_points = np.vstack([vec(i) for i in control_points])
 
-    shape = SliderPath(pathType, control_points)
-    shape = np.vstack(shape.calculatedPath)
-    return shape, control_points
+    for i in range(len(pts)):
+        end += 1
+
+        if i == len(pts) - 1 or (pts[i] == pts[i + 1]).all():
+            subPts = pts[start:end]
+            if pathType == "Linear":
+                subpath = path_approximator.approximate_linear(subPts)
+            elif pathType == "PerfectCurve":
+                if len(pts) != 3 or len(subPts) != 3:
+                    subpath = path_approximator.approximateBezier(subPts)
+
+                subpath = path_approximator.approximateCircle(subPts)
+                if len(subpath) == 0:
+                    subpath = path_approximator.approximateBezier(subPts)
+
+            elif pathType == "Catmull":
+                subpath = path_approximator.approximateCatmull(subPts)
+            else:
+                subpath = path_approximator.approximateBezier(subPts)
+
+            for t in subpath:
+                if len(calculatedPath) == 0 or (calculatedPath[-1] != t).any():
+                    calculatedPath.append(t)
+
+            start = end
+
+    return np.vstack(calculatedPath), pts
 
 
-def determine_control_point_count(shape, control_points, args):
+def estimateCtrlPtSteps(shape, ctrlPts, args):
     reds = 0
-    anchors = len(control_points)
+    anchors = len(ctrlPts)
     for i in range(1, anchors - 2):
-        if (control_points[i] == control_points[i + 1]).all():
-            if abs(get_smallest_angle(array_to_poi(control_points[i] - control_points[i - 1]).getAngle(),
-                                      array_to_poi(control_points[i + 2] - control_points[i + 1]).getAngle())) > 0.1:
+        if (ctrlPts[i] == ctrlPts[i + 1]).all():
+            if (
+                abs(
+                    shortestAngleDelta(
+                        arrayToPoint(ctrlPts[i] - ctrlPts[i - 1]).getAngle(),
+                        arrayToPoint(ctrlPts[i + 2] - ctrlPts[i + 1]).getAngle(),
+                    )
+                )
+                > 0.1
+            ):
                 reds += 1
             else:
                 reds += 0.2
 
     prev_a = None
-    total_angle = 0
+    angleTotal = 0
     for i in range(len(shape) - 1):
         diff = shape[i + 1] - shape[i]
-        a = array_to_poi(diff).getAngle()
+        a = arrayToPoint(diff).getAngle()
         if prev_a is not None:
-            total_angle += abs(prev_a - a)
+            angleTotal += abs(prev_a - a)
         prev_a = a
 
-    num_anchors = int(2 + np.ceil(total_angle * 1.13) + reds * (min(50, args.order) if args.mode == "bspline" else 50))
-    num_anchors = min(num_anchors, 10000)
-    return num_anchors
+    return min(
+        int(
+            2
+            + np.round(angleTotal * 1.13)
+            + reds * (min(50, args.order) if args.mode == "bspline" else 50)
+        ),
+        10000,
+    )
 
 
 def main(args):
@@ -72,60 +132,60 @@ def main(args):
 
     if not args.silent:
         print(inp)
-    values = inp.split(',')
-    shape, control_points = get_shape(values)
+    values = inp.split(",")
+    shape, control_points = getShape(values)
 
-    num_anchors = args.num_anchors if args.num_anchors is not None else determine_control_point_count(shape, control_points, args)
+    anchors = (
+        args.anchors
+        if args.anchors is not None
+        else estimateCtrlPtSteps(shape, control_points, args)
+    )
     if not args.silent:
-        print("num_anchors: %s" % num_anchors)
+        print("anchor count: %s" % anchors)
 
-    loss, anchors = convert_slider(shape, num_anchors, args)
+    anchors = convertPathToAnchors(shape, anchors, args)
 
     if args.print_output:
-        print_slider2(anchors, values, 1)
+        printConvertedToConsole(anchors, values, 1)
     else:
-        write_slider2(anchors, values, 1, args.output, not args.silent)
+        writeConvertedToFile(anchors, values, 1, args.output, not args.silent)
 
 
 def main2(args):
-    with open(args.input, "r") as f:
-        lines = f.readlines()
-
     hitobjects = []
     at = False
-    for l in lines:
-        ls = l.strip()
-        if not at:
-            if ls == "[HitObjects]":
-                at = True
-            continue
 
-        if ls == "":
-            continue
+    with open(args.input, "r") as f:
+        for l in f:
+            ls = l.strip()
+            if not at:
+                if ls == "[HitObjects]":
+                    at = True
+                continue
 
-        hitobjects.append(ls)
+            if ls == "":
+                continue
 
-    hitobjects = hitobjects[len(hitobjects) - 15:]
+            hitobjects.append(ls)
+
     with open(args.output, "w+") as f:
         f.write("[HitObjects]\n")
 
-    for ho in hitobjects:
-        values = ho.split(',')
+    for ho in hitobjects[len(hitobjects) - 15 :]:
+        values = ho.split(",")
 
         if values[3] != "2" and values[3] != "6" or len(values) < 8:
             with open(args.output, "a") as f:
                 f.write(ho + "\n")
             continue
 
-        shape, control_points = get_shape(values)
+        shape, ctrlPts = getShape(values)
 
-        num_anchors = determine_control_point_count(shape, control_points, args)
+        steps = estimateCtrlPtSteps(shape, ctrlPts, args)
         if not args.silent:
-            print("num_anchors: %s" % num_anchors)
+            print("anchors: %s" % steps)
 
-        loss, anchors = convert_slider(shape, num_anchors, args)
-
-        p1, ret = encode_anchors(anchors)
+        p1, ret = encodeAnchors(convertPathToAnchors(shape, steps, args))
         values[0] = str(int(p1[0]))
         values[1] = str(int(p1[1]))
         values[5] = ret
@@ -136,23 +196,85 @@ def main2(args):
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser()
-    parser.add_argument("--slidercode", type=str, default=None, help=".osu code of slider to convert.")
-    parser.add_argument("--input", type=str, default="input.txt", help="Path to text file containing .osu code of slider to convert.")
-    parser.add_argument("--output", type=str, default="slidercode.txt", help="Path for the output file containing the .osu code of the converted slider.")
-    parser.add_argument("--num-anchors", type=int, default=None, help="Number of anchors to use for the converted slider.")
-    parser.add_argument("--num-steps", type=int, default=1000, help="Number of optimization steps.")
-    parser.add_argument("--num-testpoints", type=int, default=1000, help="Number of points to evaluate the converted path at for optimization, basically a resolution.")
-    parser.add_argument("--retarded", type=int, default=0, help="Magnitude of a random offset to apply to the initial anchors before optimizaiton. This creates more chaotic-looking results.")
-    parser.add_argument("--learning-rate", type=float, default=4, help="The rate of optimization for Adam optimizer.")
-    parser.add_argument("--b1", type=float, default=0.8, help="The B1 parameter for the Adam optimizer. Between 0 and 1.")
-    parser.add_argument("--b2", type=float, default=0.99, help="The B2 parameter for the Adam optimizer. Between 0 and 1.")
-    parser.add_argument("--full-map", type=bool, default=False, help="If True, interprets the input file as a full beatmap and attempts to convert every slider in the beatmap.")
-    parser.add_argument("--silent", type=bool, default=False, help="If True, removes all unnecessary console output.")
-    parser.add_argument("--print-output", type=bool, default=False, help="Whether to print the .osu code of the converted slider to the console.")
-    parser.add_argument("--mode", type=str, default="bezier", choices=["bezier", "bspline"], help="The kind of spline to use for the converted path.")
+    parser.add_argument(
+        "--slidercode", type=str, default=None, help=".osu code of slider to convert."
+    )
+    parser.add_argument(
+        "--input",
+        type=str,
+        default="input.txt",
+        help="Path to text file containing .osu code of slider to convert.",
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default="slidercode.txt",
+        help="Path for the output file containing the .osu code of the converted slider.",
+    )
+    parser.add_argument(
+        "--anchors",
+        type=int,
+        default=None,
+        help="Number of anchors to use for the converted slider.",
+    )
+    parser.add_argument(
+        "--steps", type=int, default=10000, help="Number of optimization steps."
+    )
+    parser.add_argument(
+        "--testpoints",
+        type=int,
+        default=2500,
+        help="Number of points to evaluate the converted path at for optimization, basically a resolution.",
+    )
+    parser.add_argument(
+        "--learnrate",
+        type=float,
+        default=4.5,
+        help="The rate of optimization for Adam optimizer.",
+    )
+    parser.add_argument(
+        "--b1",
+        type=float,
+        default=0.9,
+        help="The B1 parameter for the Adam optimizer. Between 0 and 1.",
+    )
+    parser.add_argument(
+        "--b2",
+        type=float,
+        default=0.9,
+        help="The B2 parameter for the Adam optimizer. Between 0 and 1.",
+    )
+    parser.add_argument(
+        "--full-map",
+        type=bool,
+        default=False,
+        help="If True, interprets the input file as a full beatmap and attempts to convert every slider in the beatmap.",
+    )
+    parser.add_argument(
+        "--silent",
+        type=bool,
+        default=True,
+        help="If True, removes all unnecessary console output.",
+    )
+    parser.add_argument(
+        "--print-output",
+        type=bool,
+        default=False,
+        help="Whether to print the .osu code of the converted slider to the console.",
+    )
+    parser.add_argument(
+        "--mode",
+        type=str,
+        default="bezier",
+        choices=["bezier", "bspline"],
+        help="The kind of spline to use for the converted path.",
+    )
     parser.add_argument("--order", type=int, default=3, help="The B-Spline order.")
-    parser.add_argument("--plot", type=bool, default=False, help="Whether to plot the progress.")
+    parser.add_argument(
+        "--plot", type=bool, default=False, help="Whether to plot the progress."
+    )
     args = parser.parse_args()
 
     if args.plot:

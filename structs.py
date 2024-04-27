@@ -12,7 +12,7 @@ class Poi:
         self.x = x
 
     def __str__(self):
-        return str(self.x) + ", " + str(self.y)
+        return str(self.x) + ', ' + str(self.y)
 
     def distance(self, point):
         return np.sqrt((self.x - point.x) ** 2 + (self.y - point.y) ** 2)
@@ -48,10 +48,7 @@ class Poi:
         return Poi(x, y)
 
     def getAngle(self):
-        if self.y < 0:
-            return -1 * np.arccos(self.x / self.distance(Poi(0, 0)))
-        else:
-            return np.arccos(self.x / self.distance(Poi(0, 0)))
+        return -1 * np.arccos(self.x / self.distance(Poi(0, 0))) if self.y < 0 else np.arccos(self.x / self.distance(Poi(0, 0)))
 
     def rounded(self):
         return Poi(int(round(self.x)), int(round(self.y)))
@@ -63,7 +60,7 @@ class Poi:
         return np.array([self.x, self.y])
 
 
-def array_to_poi(a):
+def arrayToPoint(a):
     return Poi(a[0], a[1])
 
 
@@ -99,7 +96,7 @@ def points_to_line(p1, p2):
 
 
 def point_angle_to_line(point, angle):
-    if abs(angle) == 0.5 * np.pi:
+    if abs(angle) == .5 * np.pi:
         return Line(1, 0, point.x)
     a = -1 * np.tan(angle)
     c = point.y + a * point.x
@@ -136,5 +133,5 @@ def modulo(a, n):
     return a - np.floor(a / n) * n
 
 
-def get_smallest_angle(a1, a2):
+def shortestAngleDelta(a1, a2):
     return modulo((a2 - a1 + np.pi), (2 * np.pi)) - np.pi
