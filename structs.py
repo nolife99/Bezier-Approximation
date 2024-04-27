@@ -12,7 +12,7 @@ class Poi:
         self.x = x
 
     def __str__(self):
-        return str(self.x) + ', ' + str(self.y)
+        return str(self.x) + ", " + str(self.y)
 
     def distance(self, point):
         return np.sqrt((self.x - point.x) ** 2 + (self.y - point.y) ** 2)
@@ -42,13 +42,21 @@ class Poi:
         return self.x != point.x or self.y != point.y
 
     def mirror_point(self, line, dist):
-        temp = -dist * (line.a * self.x + line.b * self.y - line.c) / (line.a ** 2 + line.b ** 2)
+        temp = (
+            -dist
+            * (line.a * self.x + line.b * self.y - line.c)
+            / (line.a**2 + line.b**2)
+        )
         x = temp * line.a + self.x
         y = temp * line.b + self.y
         return Poi(x, y)
 
     def getAngle(self):
-        return -1 * np.arccos(self.x / self.distance(Poi(0, 0))) if self.y < 0 else np.arccos(self.x / self.distance(Poi(0, 0)))
+        return (
+            -1 * np.arccos(self.x / self.distance(Poi(0, 0)))
+            if self.y < 0
+            else np.arccos(self.x / self.distance(Poi(0, 0)))
+        )
 
     def rounded(self):
         return Poi(int(round(self.x)), int(round(self.y)))
@@ -81,7 +89,7 @@ class Line:
         return Poi(x, y)
 
     def mirror_point(self, p, dist):
-        temp = -dist * (self.a * p.x + self.b * p.y - self.c) / (self.a ** 2 + self.b ** 2)
+        temp = -dist * (self.a * p.x + self.b * p.y - self.c) / (self.a**2 + self.b**2)
         x = temp * self.a + p.x
         y = temp * self.b + p.y
         return Poi(x, y)
@@ -96,7 +104,7 @@ def points_to_line(p1, p2):
 
 
 def point_angle_to_line(point, angle):
-    if abs(angle) == .5 * np.pi:
+    if abs(angle) == 0.5 * np.pi:
         return Line(1, 0, point.x)
     a = -1 * np.tan(angle)
     c = point.y + a * point.x

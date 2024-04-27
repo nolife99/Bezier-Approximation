@@ -65,7 +65,7 @@ def plotPts(p):
     ax2.plot(p[:, 0], p[:, 1], color="green")
 
 
-def plot(ll, a, p, l):
+def plot(ll, a, p, li):
     ax1.cla()
     if ll is not None:
         ax1.plot(ll)
@@ -78,8 +78,8 @@ def plot(ll, a, p, l):
     if a is not None:
         ax2.plot(a[:, 0], a[:, 1], color="red")
 
-    if l is not None:
-        a = distArr(l)
+    if li is not None:
+        a = distArr(li)
         ax3.cla()
         ax3.plot(a, color="red")
 
@@ -91,19 +91,19 @@ def plot(ll, a, p, l):
     plt.pause(0.0001)
 
 
-def plotAlpha(l):
+def plotAlpha(li):
     ax2.cla()
     ax2.axis("equal")
     ax2.scatter(
-        l[:, 0], l[:, 1], color="green", alpha=np.clip(30 / len(l), 0, 1), marker="."
+        li[:, 0], li[:, 1], color="green", alpha=np.clip(30 / len(li), 0, 1), marker="."
     )
 
     plt.draw()
     plt.pause(0.0001)
 
 
-def plotVelDistr(l):
-    a = distArr(l)
+def plotVelDistr(li):
+    a = distArr(li)
     ax3.cla()
     ax3.plot(a)
 
@@ -137,6 +137,7 @@ def pathify(pred, interp):
     predCumulative = distCumulative(pred)
     return interp(predCumulative / predCumulative[-1])
 
+
 def bSplineBasis(p, n, x):
     p = min(max(p, 1), n - 1)
     xb = x[:, None]
@@ -166,7 +167,7 @@ def weighFromT(steps, t):
 def weighBezier(steps, res):
     if steps > 1000:
         n = steps - 1
-        w = np.zeros([res, steps])
+        w = np.zeros([res, steps], np.float32)
         for i in range(res):
             t = i / (res - 1)
 
@@ -205,13 +206,13 @@ def weighBezier(steps, res):
 
         return w
 
-    return weighFromT(steps, np.linspace(0, 1, res))
+    return weighFromT(steps, np.linspace(0, 1, res, dtype=np.float32))
 
 
 def getInterp(shape):
-    shape_d_cumsum = distCumulative(shape)
+    shapeCumulative = distCumulative(shape)
     return interp1d(
-        shape_d_cumsum / shape_d_cumsum[-1],
+        shapeCumulative / shapeCumulative[-1],
         shape,
         axis=0,
         assume_sorted=True,
@@ -257,16 +258,16 @@ def PiecewiseLinearToSpline(
     # Initialize the anchors
     if verbose:
         print("Initializing anchors and test points...")
-    anchors = interpolator(np.linspace(0, 1, anchorCount))
+    anchors = interpolator(np.linspace(0, 1, anchorCount, np.float32))
     points = np.matmul(weights, anchors)
     labels = pathify(points, interpolator)
 
     # Set up adam optimizer parameters
-    m = np.zeros(anchors.shape)
-    v = np.zeros(anchors.shape)
+    m = np.zeros(anchors.shape, np.float32)
+    v = np.zeros(anchors.shape, np.float32)
 
     # Set up mask for constraining endpoints
-    learnMask = np.zeros(anchors.shape)
+    learnMask = np.zeros(anchors.shape, np.float32)
     learnMask[1:-1] = 1
 
     # Training loop

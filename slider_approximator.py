@@ -1,18 +1,17 @@
-from shape_approximator import *
+import shape_approximator as shapes
+import time
+import numpy as np
 import path_approximator
 from structs import arrayToPoint, shortestAngleDelta
 
 
-pathTypeConversion = {"L": "Linear", "P": "PerfectCurve", "C": "Catmull", "B": "Bezier"}
-
-
 def convertPathToAnchors(shape, steps, args):
     if args.plot:
-        plotAlpha(shape)
+        shapes.plotAlpha(shape)
 
     firstTime = time.time()
     anchors = (
-        PiecewiseLinearToBSpline(
+        shapes.PiecewiseLinearToBSpline(
             shape,
             args.order,
             steps,
@@ -25,7 +24,7 @@ def convertPathToAnchors(shape, steps, args):
             args.plot,
         )
         if args.mode == "bspline"
-        else PiecewiseLinearToBezier(
+        else shapes.PiecewiseLinearToBezier(
             shape,
             steps,
             args.steps,
@@ -47,23 +46,22 @@ def convertPathToAnchors(shape, steps, args):
 def getShape(values):
     pts = np.vstack(
         [
-            np.array(i.split(":"), dtype=np.float32)
+            np.array(i.split(":"), np.float32)
             for i in (values[0] + ":" + values[1] + values[5][1:]).split("|")
         ]
     )
     calculatedPath = []
     start = 0
     end = 0
-    pathType = pathTypeConversion[values[5][0]]
+    pathType = values[5][0]
 
     for i in range(len(pts)):
         end += 1
-
         if i == len(pts) - 1 or (pts[i] == pts[i + 1]).all():
             subPts = pts[start:end]
-            if pathType == "Linear":
+            if pathType == "L":
                 subpath = path_approximator.approximate_linear(subPts)
-            elif pathType == "PerfectCurve":
+            elif pathType == "P":
                 if len(pts) != 3 or len(subPts) != 3:
                     subpath = path_approximator.approximateBezier(subPts)
 
@@ -71,7 +69,7 @@ def getShape(values):
                 if len(subpath) == 0:
                     subpath = path_approximator.approximateBezier(subPts)
 
-            elif pathType == "Catmull":
+            elif pathType == "C":
                 subpath = path_approximator.approximateCatmull(subPts)
             else:
                 subpath = path_approximator.approximateBezier(subPts)
@@ -146,9 +144,9 @@ def main(args):
     anchors = convertPathToAnchors(shape, anchors, args)
 
     if args.print_output:
-        printConvertedToConsole(anchors, values, 1)
+        shapes.printConvertedToConsole(anchors, values, 1)
     else:
-        writeConvertedToFile(anchors, values, 1, args.output, not args.silent)
+        shapes.writeConvertedToFile(anchors, values, 1, args.output, not args.silent)
 
 
 def main2(args):
@@ -156,8 +154,8 @@ def main2(args):
     at = False
 
     with open(args.input, "r") as f:
-        for l in f:
-            ls = l.strip()
+        for line in f:
+            ls = line.strip()
             if not at:
                 if ls == "[HitObjects]":
                     at = True
@@ -185,7 +183,7 @@ def main2(args):
         if not args.silent:
             print("anchors: %s" % steps)
 
-        p1, ret = encodeAnchors(convertPathToAnchors(shape, steps, args))
+        p1, ret = shapes.encodeAnchors(convertPathToAnchors(shape, steps, args))
         values[0] = str(int(p1[0]))
         values[1] = str(int(p1[1]))
         values[5] = ret
@@ -225,13 +223,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--testpoints",
         type=int,
-        default=2500,
+        default=1000,
         help="Number of points to evaluate the converted path at for optimization, basically a resolution.",
     )
     parser.add_argument(
         "--learnrate",
         type=float,
-        default=4.5,
+        default=4,
         help="The rate of optimization for Adam optimizer.",
     )
     parser.add_argument(
@@ -278,7 +276,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.plot:
-        init_plot()
+        shapes.init_plot()
 
     if args.full_map:
         main2(args)

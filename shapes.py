@@ -1,4 +1,4 @@
-from structs import *
+import structs
 import numpy as np
 import gosper
 
@@ -6,7 +6,7 @@ import gosper
 def generate_shape(func, mini, maxi, step):
     shape = []
     t = mini
-    while t <= maxi + .00001:  # Extra to account for rounding error
+    while t <= maxi + 0.00001:  # Extra to account for rounding error
         point = func(t)
         shape.append(point)
         t += step
@@ -38,12 +38,21 @@ class Epitrochoid:
         self.R = R
         self.r = r
         self.d = d
-        self.rotations = denom((self.R + self.r) / self.r)
+        self.rotations = structs.denom((self.R + self.r) / self.r)
         self.size = size
 
     def get_point(self, t):
-        return np.array([(self.R + self.r) * np.cos(t) - self.d * np.cos(((self.R + self.r) / self.r) * t),
-                         (self.R + self.r) * np.sin(t) - self.d * np.sin(((self.R + self.r) / self.r) * t)]) * self.size
+        return (
+            np.array(
+                [
+                    (self.R + self.r) * np.cos(t)
+                    - self.d * np.cos(((self.R + self.r) / self.r) * t),
+                    (self.R + self.r) * np.sin(t)
+                    - self.d * np.sin(((self.R + self.r) / self.r) * t),
+                ]
+            )
+            * self.size
+        )
 
     def make_shape(self, num):
         step = 1 / num
@@ -111,11 +120,19 @@ class Wave:
         self.waviness = waviness
         self.scale = scale
 
-        self.arc1 = circle_arc_3points(np.array([-2 * self.scale, 0]), np.array([-self.scale, waviness * scale]), np.array([0, 0]))
-        self.arc2 = circle_arc_3points(np.array([0, 0]), np.array([self.scale, -waviness * scale]), np.array([2 * self.scale, 0]))
+        self.arc1 = circle_arc_3points(
+            np.array([-2 * self.scale, 0]),
+            np.array([-self.scale, waviness * scale]),
+            np.array([0, 0]),
+        )
+        self.arc2 = circle_arc_3points(
+            np.array([0, 0]),
+            np.array([self.scale, -waviness * scale]),
+            np.array([2 * self.scale, 0]),
+        )
 
     def get_point(self, t):
-        if t < .5:
+        if t < 0.5:
             return self.arc1.get_point(t * 2 * self.arc1.length + self.arc1.angle)
         else:
             return self.arc2.get_point((t * 2 - 1) * self.arc2.length + self.arc2.angle)
@@ -136,7 +153,9 @@ class CircleArc:
         self.length = length
 
     def get_point(self, t):
-        return np.array([np.cos(t) * self.radius, np.sin(t) * self.radius]) + self.middle
+        return (
+            np.array([np.cos(t) * self.radius, np.sin(t) * self.radius]) + self.middle
+        )
 
     def make_shape(self, num):
         step = self.length / num
@@ -147,11 +166,11 @@ class CircleArc:
 
 
 def circle_arc_3points(p1, p2, p3):
-    p1 = arrayToPoint(p1)
-    p2 = arrayToPoint(p2)
-    p3 = arrayToPoint(p3)
+    p1 = structs.arrayToPoint(p1)
+    p2 = structs.arrayToPoint(p2)
+    p3 = structs.arrayToPoint(p3)
 
-    pc = circle_center(p1, p2, p3)
+    pc = structs.circle_center(p1, p2, p3)
     r = pc.distance(p1)
 
     d1 = p1 - pc
@@ -162,15 +181,15 @@ def circle_arc_3points(p1, p2, p3):
     a2 = d2.getAngle()
     a3 = d3.getAngle()
 
-    da1 = shortestAngleDelta(a1, a2)
-    da2 = shortestAngleDelta(a2, a3)
+    da1 = structs.shortestAngleDelta(a1, a2)
+    da2 = structs.shortestAngleDelta(a2, a3)
 
     if da1 * da2 > 0:
         a2 = (da1 + da2) / 2 + a1
     else:
         a2 = (da1 + da2) / 2 + np.pi + a1
 
-    da = shortestAngleDelta(a1, a2) + shortestAngleDelta(a2, a3)
+    da = structs.shortestAngleDelta(a1, a2) + structs.shortestAngleDelta(a2, a3)
     return CircleArc(pc.to_array(), r, a1, da)
 
 

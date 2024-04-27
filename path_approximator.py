@@ -16,9 +16,9 @@ def approximateBezier(ctrlPts):
     if count == 0:
         return output
 
-    subdiv1 = np.empty([count, 2])
-    subdiv2 = np.empty([count * 2 - 1, 2])
-    l = subdiv2
+    subdiv1 = np.empty([count, 2], np.float32)
+    subdiv2 = np.empty([count * 2 - 1, 2], np.float32)
+    left = subdiv2
 
     toFlatten = []
     freeBufs = []
@@ -32,13 +32,15 @@ def approximateBezier(ctrlPts):
             freeBufs.append(parent)
             continue
 
-        right_child = freeBufs.pop() if len(freeBufs) > 0 else np.empty([count, 2])
-        bezierSubdivide(parent, l, right_child, subdiv1, count)
+        right = (
+            freeBufs.pop() if len(freeBufs) > 0 else np.empty([count, 2], np.float32)
+        )
+        bezierSubdivide(parent, left, right, subdiv1, count)
 
         for i in range(count):
-            parent[i] = l[i]
+            parent[i] = left[i]
 
-        toFlatten.append(right_child)
+        toFlatten.append(right)
         toFlatten.append(parent)
 
     output.append(ctrlPts[-1])
@@ -98,7 +100,7 @@ def approximateCircle(ctrlPts):
     arcRange = endAng - startAng
 
     orthoAtoC = c - a
-    orthoAtoC = np.array([orthoAtoC[1], -orthoAtoC[0]])
+    orthoAtoC = np.array([orthoAtoC[1], -orthoAtoC[0]], np.float32)
     if np.dot(orthoAtoC, b - a) < 0:
         direct = -1
         arcRange = 2 * np.pi - arcRange
@@ -117,7 +119,7 @@ def approximateCircle(ctrlPts):
     output = []
     for i in range(vertexCount):
         theta = startAng + direct * i / (vertexCount - 1) * arcRange
-        output.append(centre + np.array([np.cos(theta), np.sin(theta)]) * r)
+        output.append(centre + np.array([np.cos(theta), np.sin(theta)], np.float32) * r)
 
     return output
 
@@ -138,27 +140,27 @@ def bezierFlatTolerance(ctrlPts):
     return True
 
 
-def bezierSubdivide(ctrlPts, l, r, midpoints, count):
+def bezierSubdivide(ctrlPts, left, right, midpoints, count):
     for i in range(count):
         midpoints[i] = ctrlPts[i]
 
     for i in range(count):
-        l[i] = midpoints[0]
-        r[count - i - 1] = midpoints[count - i - 1]
+        left[i] = midpoints[0]
+        right[count - i - 1] = midpoints[count - i - 1]
 
         for j in range(count - i - 1):
             midpoints[j] = (midpoints[j] + midpoints[j + 1]) / 2
 
 
-def bezierApproximate(ctrlPts, output, r, l, count):
-    bezierSubdivide(ctrlPts, l, r, r, count)
+def bezierApproximate(ctrlPts, output, right, left, count):
+    bezierSubdivide(ctrlPts, left, right, right, count)
     for i in range(count - 1):
-        l[count + i] = r[i + 1]
+        left[count + i] = right[i + 1]
 
     output.append(ctrlPts[0].copy())
     for i in range(1, count - 1):
         index = 2 * i
-        output.append(0.25 * (l[index - 1] + 2 * l[index] + l[index + 1]))
+        output.append(0.25 * (left[index - 1] + 2 * left[index] + left[index + 1]))
 
 
 def catmullGetPt(vec1, vec2, vec3, vec4, t):
@@ -181,7 +183,8 @@ def catmullGetPt(vec1, vec2, vec3, vec4, t):
                 + (2 * vec1[1] - 5 * vec2[1] + 4 * vec3[1] - vec4[1]) * t2
                 + (-vec1[1] + 3 * vec2[1] - 3 * vec3[1] + vec4[1]) * t3
             ),
-        ]
+        ],
+        np.float32,
     )
 
     return result

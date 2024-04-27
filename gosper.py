@@ -21,9 +21,6 @@ def create_gosper_fractal(max_level=6):
     t2 = "abbbaab"
     d2 = [1, 0, 0, 4, 3, 5, 0]
 
-    # Lambda function to determine new directions of generated line segments
-    f_add_modulo6 = lambda m, d: [(m + e) % 6 for e in d]
-
     res = {0: {"s": 7.0**0.5, "t": ["a"], "d": [0]}}
     # Iterate on all level, creating each new level with the previous one
     for level in range(1, max_level + 1):
@@ -62,9 +59,6 @@ def plot_level(max_level=6, **kwargs):
     import matplotlib.pyplot as plt
     from math import sin, cos, atan
 
-    f_add = lambda m, d: [(m + e) for e in d]
-    f_rotate_x = lambda c, s, x, y: [c * xx - s * yy for xx, yy in zip(x, y)]
-    f_rotate_y = lambda c, s, x, y: [s * xx + c * yy for xx, yy in zip(x, y)]
     alpha = atan((3**0.5) / 5.0)
     fig, ax = plt.subplots()
     res = create_gosper_fractal(max_level)
@@ -123,9 +117,7 @@ def plot_level(max_level=6, **kwargs):
 def create_animated_gif(max_recursion_level=6, filename="gosper_curve.gif", **kwargs):
     tile = kwargs.get("tile", False)
     grid = kwargs.get("grid", False)
-    import subprocess
 
-    generate_level2 = lambda x: list(range(x)) + [x - i - 2 for i in range(x - 1)]
     cmd = "convert -antialias -density 100 -delay 120 "
     for level in generate_level2(max_recursion_level + 1):
         cfilename = filename + "_" + "{0:03d}".format(level) + ".png"
@@ -138,4 +130,27 @@ def create_animated_gif(max_recursion_level=6, filename="gosper_curve.gif", **kw
             grid=grid,
         )
     cmd += filename
+
+    import subprocess
+
     subprocess.check_output(cmd.split(" "))
+
+
+def f_add_modulo6(m, d):
+    return [(m + e) % 6 for e in d]
+
+
+def f_add(m, d):
+    return [m + e for e in d]
+
+
+def f_rotate_x(c, s, x, y):
+    return [c * xx - s * yy for xx, yy in zip(x, y)]
+
+
+def f_rotate_y(c, s, x, y):
+    return [s * xx + c * yy for xx, yy in zip(x, y)]
+
+
+def generate_level2(x):
+    return list(range(x)) + [x - i - 2 for i in range(x - 1)]
