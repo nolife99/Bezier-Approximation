@@ -110,7 +110,7 @@ def plotVelDistr(li):
 
 
 def shapeLength(shape):
-    return np.sum(norm(np.diff(shape, axis=0), axis=1))
+    return np.sum(distArr(shape))
 
 
 def distArr(shape):
@@ -140,7 +140,7 @@ def bSplineBasis(p, n, x):
     p = min(max(p, 1), n - 1)
     xb = x[:, None]
     u = np.pad(np.linspace(0, 1, n + 1 - p), (p, p), constant_values=(0, 1))
-    prev_order = np.zeros((len(x), n - p))
+    prev_order = np.zeros((len(x), n - p), np.float32)
     prev_order[
         np.arange(len(x)), np.clip((x * (n - p)).astype(np.int32), 0, n - p - 1)
     ] = 1
@@ -149,7 +149,7 @@ def bSplineBasis(p, n, x):
         alpha = (xb - u[None, p - c + 1 : n]) / (u[p + 1 : n + c] - u[p - c + 1 : n])[
             None, :
         ]
-        order = np.zeros((len(x), n - p + c))
+        order = np.zeros((len(x), n - p + c), np.float32)
         order[:, 1:] += alpha * prev_order
         order[:, :-1] += (1 - alpha) * prev_order
         prev_order = order
@@ -159,7 +159,7 @@ def bSplineBasis(p, n, x):
 
 def weighFromT(steps, t):
     p = np.power(t[:, np.newaxis], np.arange(steps))
-    return binom(np.asarray(steps - 1), np.arange(steps), dtype=np.float32) * p[::-1, ::-1] * p
+    return binom(np.asarray(steps - 1), np.arange(steps)) * p[::-1, ::-1] * p
 
 
 def weighBezier(steps, res):

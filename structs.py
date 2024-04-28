@@ -72,6 +72,14 @@ def arrayToPoint(a):
     return Poi(a[0], a[1])
 
 
+def getAngle(a):
+    x = a[0]
+    y = a[1]
+    dist = np.sqrt(x**2 + y**2)
+
+    return -1 * np.arccos(x / dist) if y < 0 else np.arccos(x / dist)
+
+
 class Line:
     def __init__(self, a=0, b=0, c=0):
         self.a = a

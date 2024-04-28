@@ -2,7 +2,7 @@ import shape_approximator as shapes
 import time
 import numpy as np
 import path_approximator
-from structs import arrayToPoint, shortestAngleDelta
+from structs import getAngle, shortestAngleDelta
 
 
 def convertPathToAnchors(shape, steps, args):
@@ -91,8 +91,8 @@ def estimateCtrlPtSteps(shape, ctrlPts, args):
             if (
                 abs(
                     shortestAngleDelta(
-                        arrayToPoint(ctrlPts[i] - ctrlPts[i - 1]).getAngle(),
-                        arrayToPoint(ctrlPts[i + 2] - ctrlPts[i + 1]).getAngle(),
+                        getAngle(ctrlPts[i] - ctrlPts[i - 1]),
+                        getAngle(ctrlPts[i + 2] - ctrlPts[i + 1]),
                     )
                 )
                 > 0.1
@@ -104,8 +104,7 @@ def estimateCtrlPtSteps(shape, ctrlPts, args):
     prev_a = None
     angleTotal = 0
     for i in range(len(shape) - 1):
-        diff = shape[i + 1] - shape[i]
-        a = arrayToPoint(diff).getAngle()
+        a = getAngle(shape[i + 1] - shape[i])
         if prev_a is not None:
             angleTotal += abs(prev_a - a)
         prev_a = a
