@@ -124,7 +124,7 @@ def approximateCircle(ctrlPts):
     return output
 
 
-def approximate_linear(ctrlPts):
+def approximateLinear(ctrlPts):
     result = []
     for c in ctrlPts:
         result.append(c.copy())

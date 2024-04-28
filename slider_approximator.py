@@ -60,7 +60,7 @@ def getShape(values):
         if i == len(pts) - 1 or (pts[i] == pts[i + 1]).all():
             subPts = pts[start:end]
             if pathType == "L":
-                subpath = path_approximator.approximate_linear(subPts)
+                subpath = path_approximator.approximateLinear(subPts)
             elif pathType == "P":
                 if len(pts) != 3 or len(subPts) != 3:
                     subpath = path_approximator.approximateBezier(subPts)
@@ -113,7 +113,7 @@ def estimateCtrlPtSteps(shape, ctrlPts, args):
     return min(
         int(
             2
-            + np.round(angleTotal * 1.13)
+            + angleTotal * 1.13
             + reds * (min(50, args.order) if args.mode == "bspline" else 50)
         ),
         10000,
@@ -131,12 +131,12 @@ def main(args):
     if not args.silent:
         print(inp)
     values = inp.split(",")
-    shape, control_points = getShape(values)
+    shape, ctrlPts = getShape(values)
 
     anchors = (
         args.anchors
         if args.anchors is not None
-        else estimateCtrlPtSteps(shape, control_points, args)
+        else estimateCtrlPtSteps(shape, ctrlPts, args)
     )
     if not args.silent:
         print("anchor count: %s" % anchors)

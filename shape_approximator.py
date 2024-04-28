@@ -7,23 +7,21 @@ import time
 global plt, fig, ax1, ax2, ax3, ax4
 
 
-def encodeAnchors(anchors, s=1, o=np.zeros(2)):
-    li: np.ndarray = np.round(anchors * s + o)
+def encodeAnchors(anchors, s=1, o=np.zeros(2, np.float32)):
+    li = np.round(anchors * s + o)
     for i in range(len(li) - 1):
         if (li[i] == li[i + 1]).all():
             li[i + 1] += 1
             i -= 2
 
-    li2 = li.tolist()
-    p1 = li2.pop(0)
     ret = "B"
-    for p in li2:
-        ret += "|" + str(int(p[0])) + ":" + str(int(p[1]))
+    for p in li[1:]:
+        ret += f"|{p[0]:.0f}:{p[1]:.0f}"
 
-    return p1, ret
+    return li[0], ret
 
 
-def writeConverted(anchors, plen, s=192, o=np.array([256, 192])):
+def writeConverted(anchors, plen, s=192, o=np.array([256, 192], np.float32)):
     p1, ret = encodeAnchors(anchors, s, o)
     with open("slidercode.txt", "w+") as f:
         f.write("%s,%s,0,2,0,%s,1,%s" % (int(p1[0]), int(p1[1]), ret, plen * s))
@@ -33,8 +31,8 @@ def writeConverted(anchors, plen, s=192, o=np.array([256, 192])):
 
 def writeConvertedToFile(anchors, values, s, out, verbose):
     p1, ret = encodeAnchors(anchors, s)
-    values[0] = str(int(p1[0]))
-    values[1] = str(int(p1[1]))
+    values[0] = f"{p1[0]:.0f}"
+    values[1] = f"{p1[1]:.0f}"
     values[5] = ret
 
     with open(out, "w+") as f:
@@ -46,8 +44,8 @@ def writeConvertedToFile(anchors, values, s, out, verbose):
 
 def printConvertedToConsole(anchors, values, s=1):
     p1, ret = encodeAnchors(anchors, s)
-    values[0] = str(int(p1[0]))
-    values[1] = str(int(p1[1]))
+    values[0] = f"{p1[0]:.0f}"
+    values[1] = f"{p1[1]:.0f}"
     values[5] = ret
     print(",".join(values))
 
@@ -55,7 +53,7 @@ def printConvertedToConsole(anchors, values, s=1):
 def printAnchorsConsole(anchors):
     ret = ""
     for p in anchors:
-        ret += "|" + str(p[0]) + ":" + str(p[1])
+        ret += f"|{p[0]:.0f}:{p[1]:.0f}"
     print(ret)
 
 
@@ -249,61 +247,51 @@ def PiecewiseLinearToSpline(
 ):
     transposedWeights = np.transpose(weights)
 
-    # Generate pathify template
-    # Means the same target shape but with equal spacing, so pathify runs in linear time
     if verbose:
         print("Initializing interpolation...")
-    interpolator = getInterp(shape)
+    interp = getInterp(shape)
 
-    # Initialize the anchors
     if verbose:
         print("Initializing anchors and test points...")
-    anchors = interpolator(np.linspace(0, 1, anchorCount, np.float32))
+    anchors = interp(np.linspace(0, 1, anchorCount, np.float32))
     points = np.matmul(weights, anchors)
-    labels = pathify(points, interpolator)
+    labels = pathify(points, interp)
 
-    # Set up adam optimizer parameters
     m = np.zeros(anchors.shape, np.float32)
     v = np.zeros(anchors.shape, np.float32)
 
-    # Set up mask for constraining endpoints
     learnMask = np.zeros(anchors.shape, np.float32)
     learnMask[1:-1] = 1
 
-    # Training loop
     losses = []
     step = 0
+
     if verbose:
         print("Starting optimization loop")
     for step in range(1, steps):
         points = np.matmul(weights, anchors)
 
         if step % 11 == 0:
-            labels = pathify(points, interpolator)
+            labels = pathify(points, interp)
 
         diff = labels - points
         loss = np.mean(np.square(diff))
-
-        # Calculate gradients
         grad = -1 / anchorCount * np.matmul(transposedWeights, diff) * learnMask
 
-        # Update with adam optimizer
         m = b1 * m + (1 - b1) * grad
         v = b2 * v + (1 - b2) * np.square(grad)
         anchors -= learnRate * m / (1 - b1**step) / (np.sqrt(v / (1 - b2**step)) + 1e-8)
 
-        # Logging
         losses.append(loss)
-
         if plot and step % 100 == 0:
             print("Step ", step, "Loss ", loss, "Rate ", learnRate)
             plot(losses, anchors, points, labels)
 
-    points = np.matmul(weights, anchors)
-
     # plot(loss_list, anchors, points, labels)
     if verbose:
+        points = np.matmul(weights, anchors)
         print("Final loss: ", np.mean(np.square(labels - points)), step + 1)
+
     return anchors
 
 
