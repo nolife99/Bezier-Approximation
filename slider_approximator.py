@@ -46,7 +46,7 @@ def convertPathToAnchors(shape, steps, args):
 def getShape(values):
     pts = np.vstack(
         [
-            np.array(i.split(":"), np.float32)
+            np.array(i.split(":"), np.float32, copy=False)
             for i in (values[0] + ":" + values[1] + values[5][1:]).split("|")
         ]
     )
@@ -235,13 +235,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--b1",
         type=float,
-        default=0.9,
+        default=0.5,
         help="The B1 parameter for the Adam optimizer. Between 0 and 1.",
     )
     parser.add_argument(
         "--b2",
         type=float,
-        default=0.9,
+        default=0.5,
         help="The B2 parameter for the Adam optimizer. Between 0 and 1.",
     )
     parser.add_argument(

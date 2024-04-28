@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.linalg import norm
 from scipy.interpolate import interp1d
-from scipy.special import comb
+from scipy.special import binom
 import time
 
 global plt, fig, ax1, ax2, ax3, ax4
@@ -21,7 +21,7 @@ def encodeAnchors(anchors, s=1, o=np.zeros(2, np.float32)):
     return li[0], ret
 
 
-def writeConverted(anchors, plen, s=192, o=np.array([256, 192], np.float32)):
+def writeConverted(anchors, plen, s=192, o=np.array([256, 192], np.float32, copy=False)):
     p1, ret = encodeAnchors(anchors, s, o)
     with open("slidercode.txt", "w+") as f:
         f.write("%s,%s,0,2,0,%s,1,%s" % (int(p1[0]), int(p1[1]), ret, plen * s))
@@ -159,7 +159,7 @@ def bSplineBasis(p, n, x):
 
 def weighFromT(steps, t):
     p = np.power(t[:, np.newaxis], np.arange(steps))
-    return comb(steps - 1, np.arange(steps)) * p[::-1, ::-1] * p
+    return binom(np.asarray(steps - 1), np.arange(steps), dtype=np.float32) * p[::-1, ::-1] * p
 
 
 def weighBezier(steps, res):
@@ -213,8 +213,8 @@ def getInterp(shape):
         shapeCumulative / shapeCumulative[-1],
         shape,
         axis=0,
-        assume_sorted=True,
         copy=False,
+        assume_sorted=True,
     )
 
 
@@ -253,15 +253,16 @@ def PiecewiseLinearToSpline(
 
     if verbose:
         print("Initializing anchors and test points...")
-    anchors = interp(np.linspace(0, 1, anchorCount, np.float32))
+    anchors = interp(np.linspace(0, 1, anchorCount, dtype=np.float32))
     points = np.matmul(weights, anchors)
     labels = pathify(points, interp)
 
     m = np.zeros(anchors.shape, np.float32)
     v = np.zeros(anchors.shape, np.float32)
 
-    learnMask = np.zeros(anchors.shape, np.float32)
-    learnMask[1:-1] = 1
+    learnMask = np.ones(anchors.shape, np.float32)
+    learnMask[0] = 0
+    learnMask[-1] = 0
 
     losses = []
     step = 0
@@ -280,7 +281,7 @@ def PiecewiseLinearToSpline(
 
         m = b1 * m + (1 - b1) * grad
         v = b2 * v + (1 - b2) * np.square(grad)
-        anchors -= learnRate * m / (1 - b1**step) / (np.sqrt(v / (1 - b2**step)) + 1e-8)
+        anchors -= learnRate * m / (1 - b1**step) / (np.sqrt(v / (1 - b2**step)) + 4.94065645841247E-324)
 
         losses.append(loss)
         if plot and step % 100 == 0:

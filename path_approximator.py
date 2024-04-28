@@ -100,7 +100,7 @@ def approximateCircle(ctrlPts):
     arcRange = endAng - startAng
 
     orthoAtoC = c - a
-    orthoAtoC = np.array([orthoAtoC[1], -orthoAtoC[0]], np.float32)
+    orthoAtoC = np.array([orthoAtoC[1], -orthoAtoC[0]], np.float32, copy=False)
     if np.dot(orthoAtoC, b - a) < 0:
         direct = -1
         arcRange = 2 * np.pi - arcRange
@@ -119,7 +119,7 @@ def approximateCircle(ctrlPts):
     output = []
     for i in range(vertexCount):
         theta = startAng + direct * i / (vertexCount - 1) * arcRange
-        output.append(centre + np.array([np.cos(theta), np.sin(theta)], np.float32) * r)
+        output.append(centre + np.array([np.cos(theta), np.sin(theta)], np.float32) * r, copy=False)
 
     return output
 
@@ -184,7 +184,7 @@ def catmullGetPt(vec1, vec2, vec3, vec4, t):
                 + (-vec1[1] + 3 * vec2[1] - 3 * vec3[1] + vec4[1]) * t3
             ),
         ],
-        np.float32,
+        np.float32, copy=False
     )
 
     return result
