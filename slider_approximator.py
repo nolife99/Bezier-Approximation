@@ -95,7 +95,7 @@ def estimateCtrlPtSteps(shape, ctrlPts, args):
                         getAngle(ctrlPts[i + 2] - ctrlPts[i + 1]),
                     )
                 )
-                > 0.1
+                > 0.06
             ):
                 reds += 1
             else:
@@ -109,13 +109,10 @@ def estimateCtrlPtSteps(shape, ctrlPts, args):
             angleTotal += abs(prev_a - a)
         prev_a = a
 
-    return min(
-        int(
-            2
-            + angleTotal * 1.13
-            + reds * (min(50, args.order) if args.mode == "bspline" else 50)
-        ),
-        10000,
+    return int(
+        2
+        + angleTotal * 1.13
+        + reds * min(50, args.order if args.mode == "bspline" else anchors)
     )
 
 
@@ -124,8 +121,9 @@ def main(args):
         inp = args.slidercode
     else:
         with open(args.input, "r") as f:
-            lines = f.readlines()
-        inp = lines[0][3:]
+            for line in f:
+                inp = line[3:]
+                break
 
     if not args.silent:
         print(inp)
@@ -222,7 +220,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--testpoints",
         type=int,
-        default=1000,
+        default=100,
         help="Number of points to evaluate the converted path at for optimization, basically a resolution.",
     )
     parser.add_argument(
@@ -234,13 +232,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--b1",
         type=float,
-        default=0.5,
+        default=0.9,
         help="The B1 parameter for the Adam optimizer. Between 0 and 1.",
     )
     parser.add_argument(
         "--b2",
         type=float,
-        default=0.5,
+        default=0.999,
         help="The B2 parameter for the Adam optimizer. Between 0 and 1.",
     )
     parser.add_argument(
