@@ -10,6 +10,7 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+*.toml
 .Python
 build/
 develop-eggs/
@@ -27,6 +28,7 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+.replit
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
