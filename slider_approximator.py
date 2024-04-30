@@ -38,7 +38,7 @@ def convertPathToAnchors(shape, steps, args):
     )
 
     if not args.silent:
-        print("Time took:", time.time() - firstTime)
+        print(f"Elapsed {time.time() - firstTime:.2f}s")
 
     return anchors
 
@@ -60,7 +60,7 @@ def getShape(values):
         if i == len(pts) - 1 or (pts[i] == pts[i + 1]).all():
             subPts = pts[start:end]
             if pathType == "L":
-                subpath = path_approximator.approximateLinear(subPts)
+                subpath = subPts
             elif pathType == "P":
                 if len(pts) != 3 or len(subPts) != 3:
                     subpath = path_approximator.approximateBezier(subPts)
@@ -116,34 +116,105 @@ def estimateCtrlPtSteps(shape, ctrlPts, args):
     )
 
 
+def progressBar(
+    start,
+    total,
+    prefix="Progress:",
+    length=50,
+):
+    spinner = "|/-\\"
+    for i in range(start, total):
+        yield i
+
+        iteration = i + 1
+        filledLength = int(length * iteration // total)
+        bar = "*" * filledLength + "." * (length - filledLength)
+
+        print(f"\r{prefix} [{bar}] {100 * (iteration / float(total)):.1f}%  ", end=spinner[i & 3])
+
+    print(end="\r\033[J")
+
+
+def encodeAnchors(anchors, s=1, o=np.zeros(2, np.float32)):
+    li = np.round(anchors * s + o)
+    for i in range(len(li) - 1):
+        if (li[i] == li[i + 1]).all():
+            li[i + 1] += 1
+            i -= 2
+
+    ret = "B"
+    for p in li[1:]:
+        ret += f"|{p[0]:.0f}:{p[1]:.0f}"
+
+    return li[0], ret
+
+
+def writeConverted(
+    anchors, plen, s=192, o=np.array([256, 192], np.float32, copy=False)
+):
+    p1, ret = encodeAnchors(anchors, s, o)
+    with open("slidercode.txt", "w+") as f:
+        f.write("%s,%s,0,2,0,%s,1,%s" % (int(p1[0]), int(p1[1]), ret, plen * s))
+
+    print("Successfully saved slidercode to slidercode.txt")
+
+
+def writeConvertedToFile(anchors, values, s, out, verbose):
+    p1, ret = encodeAnchors(anchors, s)
+    values[0] = str(int(p1[0]))
+    values[1] = str(int(p1[1]))
+    values[5] = ret
+
+    with open(out, "w+") as f:
+        f.write(",".join(values))
+
+    if verbose:
+        print("Successfully saved slidercode to slidercode.txt")
+
+
+def printConvertedToConsole(anchors, values, s=1):
+    p1, ret = encodeAnchors(anchors, s)
+    values[0] = str(int(p1[0]))
+    values[1] = str(int(p1[1]))
+    values[5] = ret
+    print(",".join(values))
+
+
+def printAnchorsConsole(anchors):
+    ret = ""
+    for p in anchors:
+        ret += f"|{p[0]:.0f}:{p[1]:.0f}"
+    print(ret)
+
+
 def main(args):
     if args.slidercode is not None:
         inp = args.slidercode
     else:
-        with open(args.input, "r") as f:
+        with open(args.input, "r", encoding="latin-1") as f:
             for line in f:
                 inp = line[3:]
                 break
 
-    if not args.silent:
-        print(inp)
     values = inp.split(",")
     shape, ctrlPts = getShape(values)
+    if args.testpoints is None:
+        args.testpoints = np.ceil(shapes.shapeLength(shape), dtype=np.int32)
 
     anchors = (
         args.anchors
         if args.anchors is not None
         else estimateCtrlPtSteps(shape, ctrlPts, args)
     )
-    if not args.silent:
-        print("anchor count: %s" % anchors)
+    if not args.silent and args.anchors is None:
+        print("Using", anchors, "anchors for new slider")
 
     anchors = convertPathToAnchors(shape, anchors, args)
 
     if args.print_output:
-        shapes.printConvertedToConsole(anchors, values, 1)
+        printConvertedToConsole(anchors, values, 1)
     else:
-        shapes.writeConvertedToFile(anchors, values, 1, args.output, not args.silent)
+        writeConvertedToFile(anchors, values, 1, args.output, not args.silent)
 
 
 def main2(args):
@@ -180,7 +251,7 @@ def main2(args):
         if not args.silent:
             print("anchors: %s" % steps)
 
-        p1, ret = shapes.encodeAnchors(convertPathToAnchors(shape, steps, args))
+        p1, ret = encodeAnchors(convertPathToAnchors(shape, steps, args))
         values[0] = str(int(p1[0]))
         values[1] = str(int(p1[1]))
         values[5] = ret
@@ -206,27 +277,27 @@ if __name__ == "__main__":
         "--output",
         type=str,
         default="slidercode.txt",
-        help="Path for the output file containing the .osu code of the converted slider.",
+        help="Path for the output file containing the .osu code of the new slider.",
     )
     parser.add_argument(
         "--anchors",
         type=int,
         default=None,
-        help="Number of anchors to use for the converted slider.",
+        help="Number of anchors to use for the new slider.",
     )
     parser.add_argument(
-        "--steps", type=int, default=10000, help="Number of optimization steps."
+        "--steps", type=int, default=10000, help="Number of optimization steps"
     )
     parser.add_argument(
         "--testpoints",
         type=int,
-        default=100,
-        help="Number of points to evaluate the converted path at for optimization, basically a resolution.",
+        default=1000,
+        help="Resolution to compare against the new path for optimization, bigger value improves longer sliders",
     )
     parser.add_argument(
         "--learnrate",
         type=float,
-        default=4,
+        default=8,
         help="The rate of optimization for Adam optimizer.",
     )
     parser.add_argument(

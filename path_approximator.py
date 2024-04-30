@@ -1,6 +1,6 @@
 import numpy as np
 
-BEZIER_TOLERANCE = 0.025
+BEZIER_TOLERANCE = 0.03
 CATMULL_DETAIL = 50
 CIRCULAR_ARC_TOLERANCE = 0.01
 
@@ -16,8 +16,8 @@ def approximateBezier(ctrlPts):
     if count == 0:
         return output
 
-    subdiv1 = np.empty([count, 2], np.float32)
-    subdiv2 = np.empty([count * 2 - 1, 2], np.float32)
+    subdiv1 = np.empty((count, 2), np.float32)
+    subdiv2 = np.empty((count * 2 - 1, 2), np.float32)
     left = subdiv2
 
     toFlatten = []
@@ -33,7 +33,7 @@ def approximateBezier(ctrlPts):
             continue
 
         right = (
-            freeBufs.pop() if len(freeBufs) > 0 else np.empty([count, 2], np.float32)
+            freeBufs.pop() if len(freeBufs) > 0 else np.empty((count, 2), np.float32)
         )
         bezierSubdivide(parent, left, right, subdiv1, count)
 
@@ -119,7 +119,10 @@ def approximateCircle(ctrlPts):
     output = []
     for i in range(vertexCount):
         theta = startAng + direct * i / (vertexCount - 1) * arcRange
-        output.append(centre + np.array([np.cos(theta), np.sin(theta)], np.float32) * r, copy=False)
+        output.append(
+            centre
+            + np.array([np.cos(theta), np.sin(theta)], np.float32, copy=False) * r
+        )
 
     return output
 
@@ -184,7 +187,8 @@ def catmullGetPt(vec1, vec2, vec3, vec4, t):
                 + (-vec1[1] + 3 * vec2[1] - 3 * vec3[1] + vec4[1]) * t3
             ),
         ],
-        np.float32, copy=False
+        np.float32,
+        copy=False,
     )
 
     return result
