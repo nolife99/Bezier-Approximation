@@ -1,6 +1,6 @@
-import numpy as cp
-from scipy.interpolate import interp1d
-from scipy.special import binom
+import cupy as cp
+from cupyx.scipy.interpolate import interp1d
+from cupyx.scipy.special import binom
 import time
 from slider_approximator import progressBar, writeConverted
 

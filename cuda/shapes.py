@@ -1,5 +1,5 @@
 import structs
-import numpy as cp
+import cupy as cp
 import gosper
 
 

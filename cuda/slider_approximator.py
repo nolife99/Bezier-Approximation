@@ -1,6 +1,6 @@
 import shape_approximator as shapes
 import time
-import numpy as cp
+import cupy as cp
 import path_approximator
 from structs import getAngle, shortestAngleDelta
 

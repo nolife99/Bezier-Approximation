@@ -1,4 +1,4 @@
-import numpy as cp
+import cupy as cp
 
 BEZIER_TOLERANCE = 0.03
 CATMULL_DETAIL = 50

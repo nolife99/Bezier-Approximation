@@ -1,4 +1,4 @@
-import numpy as cp
+import cupy as cp
 
 
 class Poi:
