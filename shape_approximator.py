@@ -207,37 +207,38 @@ def PiecewiseLinearToSpline(
     m = cp.zeros(anchors.shape, cp.float32)
     v = cp.zeros(anchors.shape, cp.float32)
 
-    learnMask = cp.ones(anchors.shape, cp.float32)
-    learnMask[0] = 0
-    learnMask[-1] = 0
+    learnMask = cp.zeros(anchors.shape, cp.float32)
+    learnMask[1:-1] = 1
 
-    losses = (steps - 1) * [None]
-    step = 0
+    if plot:
+        losses = (steps - 1) * [None]
 
-    for step in progressBar(1, steps) if verbose else range(1, steps):
+    b1E = 1 - b1
+    b2E = 1 - b2
+
+    for i in progressBar(1, steps) if verbose else range(1, steps):
         points = weights @ anchors
-
-        if step % 11 == 0:
+        if i % 11 == 0:
             labels = pathify(points, interp)
 
         diff = labels - points
         grad = -1 / anchorCount * transposedWeights @ diff * learnMask
 
-        m = b1 * m + (1 - b1) * grad
-        v = b2 * v + (1 - b2) * grad**2
-        anchors -= learnRate * m / (1 - b1**step) / (cp.sqrt(v / (1 - b2**step)) + 1e-9)
+        m = b1 * m + b1E * grad
+        v = b2 * v + b2E * grad**2
+        anchors -= learnRate * m / (1 - b1**i) / (cp.sqrt(v / (1 - b2**i)) + 1e-9)
 
         if plot:
             loss = cp.mean(diff**2)
             losses.append(loss)
-            if step % 100 == 0:
-                print("Step ", step, "Loss ", loss, "Rate ", learnRate)
+            if i % 100 == 0:
+                print("Step ", i, "Loss ", loss, "Rate ", learnRate)
                 plot(losses, anchors, points, labels)
 
     # plot(loss_list, anchors, points, labels)
     if verbose:
         points = weights @ anchors
-        print(f"Final loss: {cp.mean((labels - points) ** 2):3f}", end=" | ")
+        print(f"Final loss: {cp.mean((labels - points) ** 2):.1%}", end=" | ")
 
     return anchors
 

@@ -44,10 +44,12 @@ def convertPathToAnchors(shape, steps, args):
 
 
 def getShape(values):
-    pts = [
-        cp.array(i.split(":"), cp.float32, copy=False)
-        for i in (values[0] + ":" + values[1] + values[5][1:]).split("|")
-    ]
+    pts = cp.vstack(
+        [
+            cp.array(i.split(":"), cp.float32, copy=False)
+            for i in (values[0] + ":" + values[1] + values[5][1:]).split("|")
+        ]
+    )
     calculatedPath = []
     start = 0
     end = 0
@@ -78,7 +80,7 @@ def getShape(values):
 
             start = end
 
-    return cp.vstack(calculatedPath), pts
+    return cp.vstack(calculatedPath, dtype=cp.float32), pts
 
 
 def estimateCtrlPtSteps(shape, ctrlPts, args):
@@ -109,25 +111,34 @@ def estimateCtrlPtSteps(shape, ctrlPts, args):
 
     return int(
         angleTotal * 1.3
-        + reds * (min(50, args.order) if args.mode == "bspline" else anchors)
+        + reds * (min(50, args.order) if args.mode == "bspline" else len(shape) / 50)
     )
 
 
-def progressBar(start, total, length=60):
+def progressBar(start, total, length=70):
     spinner = "|/-\\"
+    filled_np = cp.full(length, ".")
+    str = "Progress: {0} {1:.1%} ({2}/{3})  {4}\r"
+    convF = {"numpystr": lambda x: x}
+
     for i in range(start, total):
         yield i
+        if i % 3 == 0:
+            iteration = i + 1
+            filled = iteration / total
+            filled_np[0 : length * iteration // total] = "*"
 
-        iteration = i + 1
-        filledLength = length * iteration // total
-        bar = "*" * filledLength + "." * (length - filledLength)
+            print(
+                end=str.format(
+                    cp.array2string(filled_np, 999, separator="", formatter=convF),
+                    filled,
+                    iteration,
+                    total,
+                    spinner[i & 3],
+                )
+            )
 
-        print(
-            f"\rProgress: [{bar}] {100 * (iteration / total):.1f}% ({iteration}/{total})  ",
-            end=spinner[i & 3],
-        )
-
-    print(end="\r\033[J")
+    print(end="\033[J")
 
 
 def encodeAnchors(anchors, s=1, o=cp.zeros(2, cp.float32)):
@@ -194,7 +205,7 @@ def main(args):
     values = inp.strip("\ufeff").split(",")
     shape, ctrlPts = getShape(values)
     if args.testpoints is None:
-        args.testpoints = cp.sum(cp.ceil(shapes.distArr(shape)), dtype=cp.int32)
+        args.testpoints = cp.sum(cp.round(shapes.distArr(shape)), dtype=cp.int32)
         print(
             "Using",
             args.testpoints,

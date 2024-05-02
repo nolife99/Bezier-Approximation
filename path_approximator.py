@@ -6,7 +6,7 @@ CIRCULAR_ARC_TOLERANCE = 0.01
 
 
 def lengthSq(x):
-    return cp.inner(x, x)
+    return cp.dot(x, x)
 
 
 def approximateBezier(ctrlPts):
@@ -88,7 +88,7 @@ def approximateCircle(ctrlPts):
     dA = a - centre
     dC = c - centre
 
-    r = cp.sqrt((dA * dA).sum())
+    r = cp.linalg.norm(dA)
 
     startAng = cp.arctan2(dA[1], dA[0])
     endAng = cp.arctan2(dC[1], dC[0])
@@ -116,7 +116,7 @@ def approximateCircle(ctrlPts):
         )
     )
 
-    output = vertexCount*[]
+    output = vertexCount * []
     for i in range(vertexCount):
         theta = startAng + direct * i / (vertexCount - 1) * arcRange
         output.append(
